@@ -2,6 +2,7 @@ import requests
 from bs4 import BeautifulSoup
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm, trange
+import json
 
 # Load the URLs from url.txt
 with open('url.txt', 'r', encoding='utf-8') as f:
@@ -39,7 +40,7 @@ def filter_urls(url):
         pass
 
 # Filter the URLs to only include Shopify sites using multiple threads
-with ThreadPoolExecutor(max_workers=100) as executor:
+with ThreadPoolExecutor(max_workers=10) as executor:
     futures = [executor.submit(filter_urls, url) for url in urls]
 
     # Initialize the progress bar
@@ -65,3 +66,8 @@ with open('shopify_urls.txt', 'w', encoding='utf-8') as f:
         f.write(url + '\n')
         pbar.update(1)
     pbar.close()
+
+# Save the Shopify URLs to a JSON file
+shopify_dict = {'shopify_urls': shopify_urls}
+with open('shopify_urls.json', 'w', encoding='utf-8') as f:
+    json.dump(shopify_dict, f, ensure_ascii=False, indent=4)
