@@ -48,7 +48,8 @@ def filter_urls(url):
         if re.search(r'<meta.*shopify.*>', response.text):
             return url
 
-    except:
+    except Exception as e:
+        logging.error(f'Error while filtering URL {url}: {e}')
         pass
 
 def app():
