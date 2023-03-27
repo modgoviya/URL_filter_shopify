@@ -14,8 +14,11 @@ def filter_urls(url):
         if response.status_code != 200:
             return None
 
+        # Convert response content to a string
+        content = response.content.decode('utf-8')
+
         # Check for Shopify using global variable
-        if 'Shopify' in response.text:
+        if 'Shopify' in content:
             return url
 
         # Check for Shopify subdomain
@@ -39,7 +42,7 @@ def filter_urls(url):
             return url
 
         # Check for Shopify scripts
-        if re.search(r'shopify_common\.js$', response.text) or re.search(r'shopify_pay\.js$', response.text):
+        if re.search(r'shopify_common\.js$', content) or re.search(r'shopify_pay\.js$', content):
             return url
 
         # Check for Shopify apps
@@ -47,12 +50,12 @@ def filter_urls(url):
             return url
 
         # Check for Shopify meta tags
-        if re.search(r'<meta.*shopify.*>', response.text):
+        if re.search(r'<meta.*shopify.*>', content):
             return url
 
-    except Exception as e:
-        logging.error(f'Error while filtering URL {url}: {e}')
+    except:
         pass
+
 
 def app():
     # Set the page title
