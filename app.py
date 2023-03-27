@@ -67,7 +67,7 @@ def app():
     # Filter the URLs to only include Shopify sites using multiple threads
     if input_file is not None:
         urls = input_file.read().splitlines()
-        with ThreadPoolExecutor(max_workers=100) as executor:
+        with ThreadPoolExecutor(max_workers=50) as executor:
             futures = [executor.submit(filter_urls, url) for url in urls]
 
             # Initialize the progress bar
