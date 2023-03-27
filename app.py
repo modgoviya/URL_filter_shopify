@@ -1,18 +1,56 @@
 import requests
 import streamlit as st
-from concurrent.futures import ThreadPoolExecutor, as_completed
+import re
+import logging
+import sys
 
-# Define a function to check if a URL is using Shopify
-def check_shopify(url):
+logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
+
+def filter_urls(url):
     try:
         response = requests.get(url)
-        # Check for the global Shopify JavaScript variable
+        if response.status_code != 200:
+            return None
+
+        # Check for Shopify using global variable
         if 'Shopify' in response.text:
             return url
+
+        # Check for Shopify subdomain
+        if re.search(r'shopify\.io$', url):
+            return url
+
+        # Check for Shopify CDN domain
+        if 'cdn.shopify.com' in url or 'checkout.shopify.com' in url:
+            return url
+
+        # Check for Shopify checkout pages
+        if '/checkouts/' in url:
+            return url
+
+        # Check for Shopify favicon
+        if re.search(r'/favicon\.ico$', url):
+            return url
+
+        # Check for Shopify logo
+        if re.search(r'/logo\.svg$', url):
+            return url
+
+        # Check for Shopify scripts
+        if re.search(r'shopify_common\.js$', response.text) or re.search(r'shopify_pay\.js$', response.text):
+            return url
+
+        # Check for Shopify apps
+        if re.search(r'shopify_app|shopify_plus', url):
+            return url
+
+        # Check for Shopify meta tags
+        if re.search(r'<meta.*shopify.*>', response.text):
+            return url
+
     except:
         pass
 
-# Define the Streamlit app
 def app():
     # Set the page title
     st.set_page_config(page_title='Shopify URL Filter', page_icon=':money_with_wings:')
@@ -25,36 +63,50 @@ def app():
     st.sidebar.title('Upload Input File')
     input_file = st.sidebar.file_uploader('Choose a text file with one URL per line', type=['txt'])
 
-    # Check if URLs are using Shopify using multiple threads
+    # Filter the URLs to only include Shopify sites using multiple threads
     if input_file is not None:
         urls = input_file.read().splitlines()
         with ThreadPoolExecutor(max_workers=100) as executor:
-            futures = [executor.submit(check_shopify, url) for url in urls]
+            futures = [executor.submit(filter_urls, url) for url in urls]
 
             # Initialize the progress bar
-            total_urls = len(urls)
             pbar = st.progress(0)
+
+            # Initialize the log view
+            log_view = st.empty()
 
             # Iterate over the completed futures
             shopify_urls = []
-            for i, future in enumerate(as_completed(futures)):
+            errors = []
+            count = 0
+            for future in as_completed(futures):
+                count += 1
+                pbar.progress(count / len(urls))
+
+                # Display the live status in the log view
+                log_view.write(f'{count} / {len(urls)} urls checked')
+
                 url = future.result()
                 if url:
                     shopify_urls.append(url)
-                # Update the progress bar every 10% or for the last URL
-                if (i+1) % (total_urls//10) == 0 or i+1 == total_urls:
-                    pbar.progress((i+1)/total_urls)
-            pbar.empty()
+                else:
+                    errors.append(urls[count - 1])
+            
+            # Display the filtered URLs in the app
+            st.write(f'{len(shopify_urls)} Shopify URLs found:')
+            for url in shopify_urls:
+                st.write(url)
 
-        # Display the URLs using Shopify in the app
-        st.write(f'{len(shopify_urls)} Shopify URLs found:')
-        for url in shopify_urls:
-            st.write(url)
+            # Allow the user to download the filtered URLs as a text file
+            output_file = st.file_uploader("Download Shopify URLs as text file")
+            if output_file is not None:
+                output_file.write('\n'.join(shopify_urls))
 
-        # Allow the user to download the URLs using Shopify as a text file
-        output_file = st.file_uploader("Download Shopify URLs as text file")
-        if output_file is not None:
-            output_file.write('\n'.join(shopify_urls))
+            # Display any errors
+            if errors:
+                st.write(f'{len(errors)} errors found:')
+                for error in errors:
+                    st.write(error)
 
 # Run the app
 if __name__ == '__main__':
